@@ -97,7 +97,7 @@ export const Route = createRootRouteWithContext<{
       {
         name: "description",
         content:
-          "EpicAura Studio is a strategic design partner for brand identity, product design and digital experiences.",
+          "Epicaura Studio is a strategic design partner for brand identity, product design and digital experiences.",
       },
 
       { property: "og:site_name", content: "EpicAura Studio" },
@@ -120,7 +120,7 @@ export const Route = createRootRouteWithContext<{
       { name: "twitter:card", content: "summary_large_image" },
       {
         name: "twitter:title",
-        content: "EpicAura Studio — Brand, product & digital design",
+        content: "Epicaura Studio — Brand, product & digital design",
       },
       {
         name: "twitter:description",
