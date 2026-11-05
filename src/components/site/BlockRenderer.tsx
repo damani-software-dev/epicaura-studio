@@ -1,3 +1,5 @@
+
+import { useEffect, useRef } from "react";
 import type { Block } from "@/lib/content";
 
 function embedUrl(url: string) {
@@ -18,6 +20,81 @@ function Paras({ text }: { text: string }) {
   );
 }
 
+function ScrollVideo({ src }: { src: string }) {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const isInViewRef = useRef(false);
+  const userPausedRef = useRef(false);
+  const programmaticPauseRef = useRef(false);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const entry = entries[0];
+        if (!entry) return;
+
+        isInViewRef.current = entry.isIntersecting;
+
+        if (entry.isIntersecting) {
+          if (!userPausedRef.current) {
+            video.play().catch(() => {
+              // Autoplay may be blocked by the browser.
+            });
+          }
+        } else if (!video.paused) {
+          programmaticPauseRef.current = true;
+          video.pause();
+        }
+      },
+      { threshold: 0.5 }
+    );
+
+    observer.observe(video);
+
+    return () => {
+      observer.disconnect();
+      video.pause();
+    };
+  }, [src]);
+
+  return (
+    <video
+      ref={videoRef}
+      src={src}
+      muted
+      playsInline
+      loop
+      preload="metadata"
+      className="w-full"
+      onPause={() => {
+        if (programmaticPauseRef.current) {
+          programmaticPauseRef.current = false;
+          return;
+        }
+
+        if (isInViewRef.current) {
+          userPausedRef.current = true;
+        }
+      }}
+      onPlay={() => {
+        userPausedRef.current = false;
+      }}
+      onEnded={(event) => {
+        const video = event.currentTarget;
+
+        if (isInViewRef.current && !userPausedRef.current) {
+          video.currentTime = 0;
+          video.play().catch(() => {
+            // Browser may block playback.
+          });
+        }
+      }}
+    />
+  );
+}
+
 export function BlockRenderer({ blocks }: { blocks: Block[] }) {
   return (
     <div className="space-y-20 md:space-y-28">
@@ -30,6 +107,7 @@ export function BlockRenderer({ blocks }: { blocks: Block[] }) {
                 <h2 className="display-lg mt-4 max-w-4xl">{b.text}</h2>
               </div>
             );
+
           case "text":
             return (
               <div key={i} className="container-edit grid gap-6 md:grid-cols-12">
@@ -39,6 +117,7 @@ export function BlockRenderer({ blocks }: { blocks: Block[] }) {
                 </div>
               </div>
             );
+
           case "image":
             return b.image.url ? (
               <figure key={i} className="container-edit">
@@ -46,15 +125,19 @@ export function BlockRenderer({ blocks }: { blocks: Block[] }) {
                 {b.caption && <figcaption className="mt-3 label-mono text-muted-foreground">{b.caption}</figcaption>}
               </figure>
             ) : null;
+
           case "two_images":
             return (
               <figure key={i} className="container-edit">
                 <div className="grid gap-4 md:grid-cols-2 md:gap-8">
-                  {[b.a, b.b].map((im, j) => im.url && <img key={j} src={im.url} alt={im.alt} loading="lazy" className="w-full" />)}
+                  {[b.a, b.b].map((im, j) => im.url && (
+                    <img key={j} src={im.url} alt={im.alt} loading="lazy" className="w-full" />
+                  ))}
                 </div>
                 {b.caption && <figcaption className="mt-3 label-mono text-muted-foreground">{b.caption}</figcaption>}
               </figure>
             );
+
           case "image_text":
             return (
               <div key={i} className="container-edit grid items-center gap-8 md:grid-cols-12">
@@ -65,6 +148,7 @@ export function BlockRenderer({ blocks }: { blocks: Block[] }) {
                 </div>
               </div>
             );
+
           case "gallery":
             return (
               <div key={i} className="container-edit grid grid-cols-2 gap-4 md:grid-cols-3 md:gap-6">
@@ -73,6 +157,7 @@ export function BlockRenderer({ blocks }: { blocks: Block[] }) {
                 ))}
               </div>
             );
+
           case "quote":
             return (
               <blockquote key={i} className="container-edit">
@@ -80,21 +165,31 @@ export function BlockRenderer({ blocks }: { blocks: Block[] }) {
                 {b.attribution && <footer className="mt-6 label-mono text-muted-foreground">— {b.attribution}</footer>}
               </blockquote>
             );
+
           case "video": {
             const src = embedUrl(b.url);
+
             return (
               <figure key={i} className="container-edit">
                 {src ? (
                   <div className="relative aspect-video">
-                    <iframe src={src} title={b.caption || "Project video"} className="absolute inset-0 h-full w-full" allow="autoplay; fullscreen; picture-in-picture" allowFullScreen loading="lazy" />
+                    <iframe
+                      src={src}
+                      title={b.caption || "Project video"}
+                      className="absolute inset-0 h-full w-full"
+                      allow="autoplay; fullscreen; picture-in-picture"
+                      allowFullScreen
+                      loading="lazy"
+                    />
                   </div>
                 ) : (
-                  <video src={b.url} controls playsInline className="w-full" />
+                  <ScrollVideo src={b.url} />
                 )}
                 {b.caption && <figcaption className="mt-3 label-mono text-muted-foreground">{b.caption}</figcaption>}
               </figure>
             );
           }
+
           case "meta":
             return (
               <dl key={i} className="container-edit grid gap-px bg-border sm:grid-cols-2 md:grid-cols-4">
